@@ -248,13 +248,17 @@ public partial class StudioScene : UserControl
             }
         }
     }
+    public void SetFirmware(string? fw)
+    {
+        currentFirmware = fw;
+        Dashboard?.SetFirmware(fw);
+        Device?.SetFirmware(fw);
+    }
     public void ApplyTelemetry(TelemetryData data)
     {
         if (data.Firmware != null)
         {
-            currentFirmware = data.Firmware;
-            Dashboard?.SetFirmware(currentFirmware);
-            Device?.SetFirmware(currentFirmware);
+            SetFirmware(data.Firmware);
         }
         if (data.Battery != null)
         {
@@ -263,19 +267,26 @@ public partial class StudioScene : UserControl
     }
     public void SetBatteryLevel(string? level)
     {
+        if (currentTransport == "2.4 GHz receiver" && (level is "wired" or "receiver" or null))
+        {
+            if (currentBatteryLevel != null && currentBatteryLevel != "wired" && currentBatteryLevel != "receiver")
+            {
+                // Preserve verified Bluetooth telemetry reading
+                return;
+            }
+            currentBatteryLevel = level;
+            Dashboard?.SetBatteryLevel(level, currentTransport);
+            Device?.SetBatteryLevel(level, currentTransport);
+            batteryLabel.Text = "Battery · Not reported (receiver)";
+            batteryLabel.Foreground = DS.Brush("DS.TextSoft");
+            UpdateDeviceHeader();
+            return;
+        }
         currentBatteryLevel = level;
         Dashboard?.SetBatteryLevel(level, currentTransport);
         Device?.SetBatteryLevel(level, currentTransport);
-        if (currentTransport == "2.4 GHz receiver" && (level is "wired" or "receiver" or null))
-        {
-            batteryLabel.Text = "Battery · Not reported (receiver)";
-            batteryLabel.Foreground = DS.Brush("DS.TextSoft");
-        }
-        else
-        {
-            batteryLabel.Text = "Battery · " + (level switch { "full" => "Full", "medium" => "Medium", "low" => "Low", "empty" => "Empty", "wired" => "Wired", _ => level ?? "Not reported" });
-            batteryLabel.Foreground = DS.Brush(level is "low" or "empty" ? "DS.Warn" : "DS.TextSoft");
-        }
+        batteryLabel.Text = "Battery · " + (level switch { "full" => "Full", "medium" => "Medium", "low" => "Low", "empty" => "Empty", "wired" => "Wired", _ => level ?? "Not reported" });
+        batteryLabel.Foreground = DS.Brush(level is "low" or "empty" ? "DS.Warn" : "DS.TextSoft");
         UpdateDeviceHeader();
     }
     private readonly HeaderBattery headerBattery=new();
