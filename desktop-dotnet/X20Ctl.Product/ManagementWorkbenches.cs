@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -25,11 +25,13 @@ public sealed class DeviceWorkbench
     readonly TextBlock hardwareRevision=ManagementVisuals.Copy("Not reported",20,true);
     readonly TextBlock transport=ManagementVisuals.Copy("Not reported",20,true);
     private string? currentTransport;
+    public event Action<TelemetryData>? TelemetryUpdated;
+
     public void SetTransport(string? value)
     {
         currentTransport = value;
         transport.Text = value ?? "Not reported";
-        if (currentTransport == "2.4 GHz receiver")
+        if (currentTransport == "2.4 GHz receiver" && firmware.Text == "Not reported")
             firmware.Text = "Not readable over XInput";
     }
     public void SetFirmware(string? value) => firmware.Text = value ?? "Not reported";
@@ -67,6 +69,39 @@ public sealed class DeviceWorkbench
         overview.Children.Add(Kit.Panel("Model capabilities",null,null,support));
         var compatibility=new StackPanel{Children={ManagementVisuals.Copy(profile.Verified?"Local drafts available. Applying to hardware requires a verified connection.":"Layout and artwork available. Native configuration is unavailable for this model.",14),ManagementVisuals.Copy("Gyro, rear controls and independent motors appear only when the connected interface supports them.",13).Also(t=>t.Margin=new(0,8,0,0))}};
         var supportPanel=Kit.Panel("X20CTL support",null,null,compatibility);supportPanel.Margin=new(0,12,0,0);overview.Children.Add(supportPanel);
+
+        if (model.Id is "x20" or "x20_pro")
+        {
+        var btStatus = new StackPanel();
+        var btReport = new TextBox { IsReadOnly = true, AcceptsReturn = true, FontFamily = new FontFamily("Consolas"), FontSize = 12, MinHeight = 110, MaxHeight = 220, Visibility = Visibility.Collapsed, TextWrapping = TextWrapping.NoWrap, Margin = new Thickness(0, 8, 0, 0), Background = new SolidColorBrush(Color.FromArgb(50, 15, 30, 55)), Foreground = Brushes.LightSteelBlue, BorderBrush = Brushes.SlateGray };
+        var btNote = ManagementVisuals.Copy("Optional hardware telemetry over Bluetooth LE while playing wirelessly.", 13.5);
+        Button? btRead = null;
+        btRead = ManagementVisuals.Action(resources, "Read over Bluetooth", async () =>
+        {
+            btRead!.IsEnabled = false;
+            btNote.Text = "Reading… wake the controller and keep it close.";
+            btReport.Visibility = Visibility.Collapsed;
+            var r = await PadBridge.Status();
+            btReport.Text = r.Text;
+            btReport.Visibility = r.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            btNote.Text = r.Ok ? "Read from the controller over Bluetooth LE." : "Could not reach controller over Bluetooth. Gameplay continues normally over receiver.";
+            if (r.Ok && r.Telemetry != null)
+            {
+                if (r.Telemetry.Firmware != null) SetFirmware(r.Telemetry.Firmware);
+                if (r.Telemetry.Battery != null) SetBatteryLevel(r.Telemetry.Battery, currentTransport);
+                TelemetryUpdated?.Invoke(r.Telemetry);
+            }
+            btRead.IsEnabled = true;
+        }, register);
+        btRead.HorizontalAlignment = HorizontalAlignment.Left;
+        btStatus.Children.Add(btRead);
+        btStatus.Children.Add(btNote.Also(t => t.Margin = new Thickness(0, 8, 0, 0)));
+        btStatus.Children.Add(btReport);
+        var btPanel = Kit.Panel("Over Bluetooth (Telemetry)", null, null, btStatus);
+        btPanel.Margin = new Thickness(0, 12, 0, 0);
+        overview.Children.Add(btPanel);
+        }
+
         OpenSetups=ManagementVisuals.Action(resources,"My setups",setups,register);OpenSetups.Visibility=Visibility.Collapsed;
     }
 }

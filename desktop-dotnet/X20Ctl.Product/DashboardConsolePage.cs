@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -45,7 +45,7 @@ public sealed class DashboardConsolePage : Grid
             batteryValue.Text = "Not reported (receiver)";
             return;
         }
-        batteryValue.Text = level switch {"full"=>"Full","medium"=>"Medium","low"=>"Low","empty"=>"Empty","wired"=>"Wired",_=>"Not reported"};
+        batteryValue.Text = level switch {"full"=>"Full","medium"=>"Medium","low"=>"Low","empty"=>"Empty","wired"=>"Wired",_=>level??"Not reported"};
     }
     public void SetBatteryLevel(string? level) => SetBatteryLevel(level, null);
     public void SetFirmware(string? firmware) => firmwareValue.Text = firmware ?? "Not reported";
