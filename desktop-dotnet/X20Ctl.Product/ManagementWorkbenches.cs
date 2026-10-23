@@ -24,8 +24,27 @@ public sealed class DeviceWorkbench
     readonly TextBlock firmware=ManagementVisuals.Copy("Not reported",20,true);
     readonly TextBlock hardwareRevision=ManagementVisuals.Copy("Not reported",20,true);
     readonly TextBlock transport=ManagementVisuals.Copy("Not reported",20,true);
+    readonly TextBlock identityHeader=ManagementVisuals.Copy("Assigned controller",14);
+    readonly TextBlock identityNote=ManagementVisuals.Copy("",14);
     private string? currentTransport;
+    private bool isConnected;
     public event Action<TelemetryData>? TelemetryUpdated;
+
+    private void UpdateIdentityNote()
+    {
+        if (isConnected)
+        {
+            identityHeader.Text = "Verified controller";
+            identityNote.Text = currentTransport != null
+                ? $"Connected via {currentTransport} · Hardware verified."
+                : "Gameplay connection detected · Hardware verified.";
+        }
+        else
+        {
+            identityHeader.Text = "Assigned controller";
+            identityNote.Text = "Controller not detected. Connect the controller to check its device details.";
+        }
+    }
 
     public void SetTransport(string? value)
     {
@@ -33,6 +52,7 @@ public sealed class DeviceWorkbench
         transport.Text = value ?? "Not reported";
         if (currentTransport == "2.4 GHz receiver" && firmware.Text == "Not reported")
             firmware.Text = "Not readable over XInput";
+        UpdateIdentityNote();
     }
     public void SetFirmware(string? value) => firmware.Text = value ?? "Not reported";
     private string? currentBattery;
@@ -50,16 +70,22 @@ public sealed class DeviceWorkbench
         battery.Text = level switch {"full"=>"Full","medium"=>"Medium","low"=>"Low","empty"=>"Empty","wired"=>"Wired",_=>level??"Not reported"};
     }
     public void SetBatteryLevel(string? level) => SetBatteryLevel(level, null);
-    public void SetConnection(bool connected)=>connection.Text=connected?"Gameplay input detected":"Not detected";
+    public void SetConnection(bool connected)
+    {
+        isConnected = connected;
+        connection.Text = connected ? "Gameplay input detected" : "Not detected";
+        UpdateIdentityNote();
+    }
     public void UpdateEngineStatus(string status) { /* Process availability does not establish hardware configuration support. */ }
     public DeviceWorkbench(ControllerModel model,int player,FrameworkElement resources,Action<Button> register,Action tester,Action setups)
     {
         State=new(model.Id,player);
         Body.ColumnDefinitions.Add(new(){Width=new(1,GridUnitType.Star)});Body.ColumnDefinitions.Add(new(){Width=new(1.25,GridUnitType.Star)});
         var hardware=new Grid();hardware.RowDefinitions.Add(new(){Height=GridLength.Auto});hardware.RowDefinitions.Add(new());hardware.RowDefinitions.Add(new(){Height=GridLength.Auto});
-        var identity=new StackPanel{Children={ManagementVisuals.Copy($"PLAYER {player+1}",13),ManagementVisuals.Copy(model.Name,28,true),ManagementVisuals.Copy("Assigned controller",14)}};hardware.Children.Add(identity);
+        var identity=new StackPanel{Children={ManagementVisuals.Copy($"PLAYER {player+1}",13),ManagementVisuals.Copy(model.Name,28,true),identityHeader}};hardware.Children.Add(identity);
         var art=new Viewbox{Child=new PhotoController(model.Id),Stretch=Stretch.Uniform,Margin=new(0,20,0,16)};Grid.SetRow(art,1);hardware.Children.Add(art);
-        var identityNote=ManagementVisuals.Copy("Model selected manually. Connect the controller to check its device details.",14);Grid.SetRow(identityNote,2);hardware.Children.Add(identityNote);
+        Grid.SetRow(identityNote,2);hardware.Children.Add(identityNote);
+        UpdateIdentityNote();
         var hardwarePanel=Kit.Panel(null,null,null,hardware,new Thickness(24));hardwarePanel.Margin=new(0,0,16,0);Body.Children.Add(hardwarePanel);
         var overview=new StackPanel();var scroll=new ScrollViewer{Content=overview,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Padding=new(0,0,8,0)};Grid.SetColumn(scroll,1);Body.Children.Add(scroll);
         var status=new StackPanel();status.Children.Add(connection);status.Children.Add(ManagementVisuals.Copy("Controller input and configuration connection are checked separately.",14).Also(t=>t.Margin=new(0,8,0,12)));

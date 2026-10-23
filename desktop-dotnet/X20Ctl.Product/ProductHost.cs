@@ -194,7 +194,7 @@ public sealed class ProductHost : Grid
         var key=(player,model.Id);activeSetups.TryGetValue(key,out var activeSetup);
         // with PC mode on, the Buttons, Curves and Macros tabs edit PC mode's settings, for any model
         bool pc=PcMode is {Enabled:true}&&pcModeStore!=null;
-        if(draft.PcMode&&!pc&&model.Id!="x20")PcModeSync.Clear(draft,curveDraft,macroDraft); // while still unlocked
+        if(draft.PcMode&&!pc&&model.Id is not ("x20" or "x20_pro"))PcModeSync.Clear(draft,curveDraft,macroDraft); // while still unlocked
         draft.PcMode=curveDraft.PcMode=macroDraft.PcMode=pc;
         if(pcModeStore!=null)PcModePage.UsePlayer(player,pcModeStore); // each controller has its own PC mode settings
         if(pc)PcModeSync.Prepare(pcModeStore!,draft,curveDraft,macroDraft);

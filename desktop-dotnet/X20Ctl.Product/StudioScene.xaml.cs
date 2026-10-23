@@ -331,7 +331,7 @@ public partial class StudioScene : UserControl
     {
         if(deviceControl==null)return;
         double previousWidth=deviceControl.ActualWidth;string previousText=deviceState.Text;
-        deviceState.Text="· "+(gameplayConnected==true?(currentBatteryLevel is "full" or "medium" or "low" or "empty" or "wired"?(currentBatteryLevel=="wired"?"Wired":batteryLabel.Text.Replace("Battery · ","")+" battery"):(currentBatteryLevel!=null&&!currentBatteryLevel.Contains("Not reported")?(currentBatteryLevel.Contains("battery",StringComparison.OrdinalIgnoreCase)?currentBatteryLevel:currentBatteryLevel+" battery"):"Connected")):"Offline");
+        deviceState.Text="· "+(gameplayConnected==true?(currentTransport=="Wired"||currentBatteryLevel=="wired"?"Wired":"Connected"):"Offline");
         deviceState.Foreground=DS.Brush(gameplayConnected==true?currentBatteryLevel is "low" or "empty" || (currentBatteryLevel!=null&&currentBatteryLevel.StartsWith("1/4"))?"DS.Warn":"DS.TextSoft":"DS.Warn");
         headerBattery.Show(gameplayConnected==true?currentBatteryLevel:null);
         if(animate&&deviceControl.IsLoaded&&previousWidth>0&&previousText!=deviceState.Text){deviceControl.BeginAnimation(WidthProperty,null);deviceControl.Width=double.NaN;deviceControl.Measure(new Size(double.PositiveInfinity,36));double next=deviceControl.DesiredSize.Width;deviceControl.Width=next;deviceControl.BeginAnimation(WidthProperty,new DoubleAnimation(previousWidth,next,TimeSpan.FromMilliseconds(180)){FillBehavior=FillBehavior.Stop,EasingFunction=DS.EaseOut});}
@@ -417,7 +417,7 @@ public partial class StudioScene : UserControl
     private void BuildAssignments()
     {
         AssignmentRows.Children.Clear(); AssignmentRows.RowDefinitions.Clear(); AssignmentCount = 0;
-        if (Model.Id != "x20") { AssignmentRows.Children.Add(new TextBlock { Text = "No verified mappings for this model.", FontSize = 17, TextWrapping = TextWrapping.Wrap }); return; }
+        if (Model.Id is not ("x20" or "x20_pro")) { AssignmentRows.Children.Add(new TextBlock { Text = "No verified mappings for this model.", FontSize = 17, TextWrapping = TextWrapping.Wrap }); return; }
         var groups = new (string Name, string[] Keys, int Columns)[] {
             ("FACE", ["A", "B", "X", "Y"], 4), ("SHOULDERS", ["LB", "RB", "LT", "RT"], 2),
             ("D-PAD", ["DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT"], 4), ("STICKS", ["L3", "R3"], 2)
@@ -524,7 +524,7 @@ public partial class StudioScene : UserControl
             choice.BorderBrush = active ? (Brush)FindResource("Ice") : new SolidColorBrush(Color.FromArgb(54, 88, 121, 163));
         }
         foreach (Button choice in RearControls.Children) choice.Background = (string)choice.Tag == SelectedControl ? (Brush)FindResource("Blue") : new SolidColorBrush(Color.FromArgb(24, 255, 255, 255));
-        FeatureNote.Text = Draft.PcMode ? (region == null ? "PC mode: pick a button, then what it should do. It applies on this PC, to games." : macro ? $"PC mode can't see {SelectedControl} itself: in Macros, pick the button that plays its sequence." : !editable ? "PC mode can't change this control." : "PC mode: this applies on this PC, to games, right away. Nothing is written to the controller.") : Model.Id != "x20" ? "Configuration is unverified for this model. You can still inspect its controls." : region == null ? "Select a button on the controller. Inspect shoulders and paddles on the back." : macro ? $"{SelectedControl} is a controller-side macro slot. Editing is unavailable; hardware state is unknown." : region.Role == "axis" ? "Movement and click share this stick cap. Analog settings and live input are unavailable here." : !editable ? "This control is present. Remapping is unverified and no write is available." : "Choose an output on the shelf. This draft stays local; hardware settings are unknown.";
+        FeatureNote.Text = Draft.PcMode ? (region == null ? "PC mode: pick a button, then what it should do. It applies on this PC, to games." : macro ? $"PC mode can't see {SelectedControl} itself: in Macros, pick the button that plays its sequence." : !editable ? "PC mode can't change this control." : "PC mode: this applies on this PC, to games, right away. Nothing is written to the controller.") : Model.Id is not ("x20" or "x20_pro") ? "Configuration is unverified for this model. You can still inspect its controls." : region == null ? "Select a button on the controller. Inspect shoulders and paddles on the back." : macro ? $"{SelectedControl} is a controller-side macro slot. Editing is unavailable; hardware state is unknown." : region.Role == "axis" ? "Movement and click share this stick cap. Analog settings and live input are unavailable here." : !editable ? "This control is present. Remapping is unverified and no write is available." : "Choose an output on the shelf. This draft stays local; hardware settings are unknown.";
         ChangeCount.Text = Draft.UnsentChanges == 0 ? "No unsent changes" : $"{Draft.UnsentChanges} unsent change{(Draft.UnsentChanges == 1 ? "" : "s")}";
         DraftChip.Text = Draft.UnsentChanges == 0 ? "No local changes" : $"{Draft.UnsentChanges} local change{(Draft.UnsentChanges == 1 ? "" : "s")}";
         if(RearControls.Children.Count>4){RearControls.Columns=RearControls.Children.Count;RearControls.Width=RearControls.Children.Count*90;}
@@ -704,7 +704,7 @@ public partial class StudioScene : UserControl
     }
     private void ButtonsTab(object sender,RoutedEventArgs e) => ShowButtons();
     /// <summary>Open the Buttons page from anywhere (tab, Dashboard hero, review harnesses).</summary>
-    public void ShowButtons() { ShowCurves(false);if(IsMacros)ShowMacros(false);if(IsVibration)ShowVibration(false);HideManagement();ButtonsNav.IsChecked=true;FrontChoice.IsEnabled=true;RearChoice.IsEnabled=Model.Id=="x20";UpdateButtonsPage(); }
+    public void ShowButtons() { ShowCurves(false);if(IsMacros)ShowMacros(false);if(IsVibration)ShowVibration(false);HideManagement();ButtonsNav.IsChecked=true;FrontChoice.IsEnabled=true;RearChoice.IsEnabled=Model.Id is "x20" or "x20_pro";UpdateButtonsPage(); }
     public DashboardConsolePage? Dashboard {get;private set;}
     private DashboardConsolePage CreateDashboard(){var page=new DashboardConsolePage(Model,Player,Draft.UnsentChanges,setupStore.Items.Count(s=>s.ModelId==Model.Id),!animate,setupStore.Items.Where(s=>s.ModelId==Model.Id).ToArray(),id=>LoadSetup(setupStore.NativeSnapshot(id)));if(currentTransport!=null)page.SetTransport(currentTransport);if(currentFirmware!=null)page.SetFirmware(currentFirmware);page.SetBatteryLevel(currentBatteryLevel,currentTransport);if(gameplayConnected is bool connected)page.SetInputConnected(connected);page.ConfigureRequested+=ShowButtons;page.PageRequested+=target=>{if(target=="Buttons")ShowButtons();else if(target=="Curves")ShowCurves(true);else if(target=="Macros")ShowMacros(true);else ShowManagement(target);};return page;}
     private void DashboardTab(object sender,RoutedEventArgs e)=>ShowManagement("Dashboard");
